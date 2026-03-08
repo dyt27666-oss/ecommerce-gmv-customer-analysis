@@ -1,0 +1,62 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Conda environments
+.conda/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# VSCode
+.vscode/
+
+# JetBrains
+.idea/
+*.iml
+
+# Windows system files
+Thumbs.db
+Desktop.ini
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Local database and temp files
+*.db
+*.sqlite
+*.sqlite3
+*.log
+*.tmp
+*.bak
+
+# Data outputs that may be regenerated locally
+data/processed/*.csv
+data/processed/*.xlsx
+data/processed/*.parquet
+
+# Plot outputs
+dashboards/*.png
+dashboards/*.jpg
+dashboards/*.jpeg
+dashboards/*.pdf
+!dashboards/*.png
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+
+# Coverage and testing
+.coverage
+.pytest_cache/
+htmlcov/

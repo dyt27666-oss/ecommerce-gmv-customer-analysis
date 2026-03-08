@@ -1,0 +1,412 @@
+{
+  "project_name": "ecommerce-gmv-customer-analysis",
+  "dataset_name": "Olist Brazilian E-commerce Dataset",
+  "version": "1.0.0",
+  "description": "Data dictionary for a GitHub-ready e-commerce analytics project covering MySQL import, SQL cleaning, KPI analysis, RFM segmentation, fulfillment analysis, and review analysis.",
+  "grain_definition": {
+    "orders": "One row represents one unique order_id.",
+    "order_items": "One row represents one product line item within one order_id, identified by order_id + order_item_id.",
+    "customers": "One row represents one customer record identified by customer_id. A customer_unique_id can map to multiple customer_id records across orders.",
+    "products": "One row represents one unique product_id.",
+    "reviews": "One row represents one review record identified by review_id, linked to an order_id. In practice, review_id may repeat across orders in some source versions, so order-level joins should be validated carefully.",
+    "payments": "One row represents one payment installment or payment method record for one order_id. One order can have multiple payment rows."
+  },
+  "tables": [
+    {
+      "table_name": "orders",
+      "grain_definition": "One row per order_id.",
+      "fields": [
+        {
+          "table": "orders",
+          "field_name": "order_id",
+          "type": "VARCHAR(50)",
+          "description": "Unique identifier of the order.",
+          "business_role": "Primary key; core join key for order-level analysis."
+        },
+        {
+          "table": "orders",
+          "field_name": "customer_id",
+          "type": "VARCHAR(50)",
+          "description": "Identifier of the customer record associated with the order.",
+          "business_role": "Foreign key to customers; used for buyer and repeat purchase analysis."
+        },
+        {
+          "table": "orders",
+          "field_name": "order_status",
+          "type": "VARCHAR(30)",
+          "description": "Current status of the order, such as delivered, shipped, canceled, or unavailable.",
+          "business_role": "Business filter field; defines valid completed orders for KPI analysis."
+        },
+        {
+          "table": "orders",
+          "field_name": "order_purchase_timestamp",
+          "type": "DATETIME",
+          "description": "Timestamp when the order was placed by the customer.",
+          "business_role": "Primary time field for GMV, Orders, Buyers, and trend analysis."
+        },
+        {
+          "table": "orders",
+          "field_name": "order_approved_at",
+          "type": "DATETIME",
+          "description": "Timestamp when the order payment was approved.",
+          "business_role": "Operational milestone; used to analyze approval lag and funnel progression."
+        },
+        {
+          "table": "orders",
+          "field_name": "order_delivered_carrier_date",
+          "type": "DATETIME",
+          "description": "Timestamp when the order was handed over to the logistics carrier.",
+          "business_role": "Fulfillment milestone; used in shipping lead time analysis."
+        },
+        {
+          "table": "orders",
+          "field_name": "order_delivered_customer_date",
+          "type": "DATETIME",
+          "description": "Timestamp when the order was delivered to the customer.",
+          "business_role": "Delivery completion field; used for fulfillment and late delivery analysis."
+        },
+        {
+          "table": "orders",
+          "field_name": "order_estimated_delivery_date",
+          "type": "DATETIME",
+          "description": "Estimated delivery date promised to the customer.",
+          "business_role": "Benchmark field for late delivery and customer experience analysis."
+        }
+      ]
+    },
+    {
+      "table_name": "order_items",
+      "grain_definition": "One row per order item line, uniquely identified by order_id + order_item_id.",
+      "fields": [
+        {
+          "table": "order_items",
+          "field_name": "order_id",
+          "type": "VARCHAR(50)",
+          "description": "Identifier of the order containing the item.",
+          "business_role": "Foreign key to orders; used to aggregate item-level revenue to order-level metrics."
+        },
+        {
+          "table": "order_items",
+          "field_name": "order_item_id",
+          "type": "INT",
+          "description": "Sequential item number within an order.",
+          "business_role": "Line-item grain field; supports item count and duplicate line validation."
+        },
+        {
+          "table": "order_items",
+          "field_name": "product_id",
+          "type": "VARCHAR(50)",
+          "description": "Identifier of the purchased product.",
+          "business_role": "Foreign key to products; supports product and category analysis."
+        },
+        {
+          "table": "order_items",
+          "field_name": "seller_id",
+          "type": "VARCHAR(50)",
+          "description": "Identifier of the seller fulfilling the item.",
+          "business_role": "Operational dimension; can support seller-level analysis if extended later."
+        },
+        {
+          "table": "order_items",
+          "field_name": "shipping_limit_date",
+          "type": "DATETIME",
+          "description": "Deadline for the seller to ship the item.",
+          "business_role": "Operational SLA field; useful for fulfillment timeliness checks."
+        },
+        {
+          "table": "order_items",
+          "field_name": "price",
+          "type": "DECIMAL(10,2)",
+          "description": "Item selling price excluding freight.",
+          "business_role": "Core revenue component; primary basis for GMV in this project."
+        },
+        {
+          "table": "order_items",
+          "field_name": "freight_value",
+          "type": "DECIMAL(10,2)",
+          "description": "Freight amount charged for the item.",
+          "business_role": "Logistics cost / customer charge field; may be included separately in extended revenue analysis."
+        }
+      ]
+    },
+    {
+      "table_name": "customers",
+      "grain_definition": "One row per customer_id. customer_unique_id represents the real-world customer entity across multiple orders.",
+      "fields": [
+        {
+          "table": "customers",
+          "field_name": "customer_id",
+          "type": "VARCHAR(50)",
+          "description": "Order-level customer record identifier.",
+          "business_role": "Primary join key to orders."
+        },
+        {
+          "table": "customers",
+          "field_name": "customer_unique_id",
+          "type": "VARCHAR(50)",
+          "description": "Stable unique identifier for the actual customer across multiple customer_id records.",
+          "business_role": "Canonical customer key; used for Buyers, Repeat Rate, and RFM analysis."
+        },
+        {
+          "table": "customers",
+          "field_name": "customer_zip_code_prefix",
+          "type": "VARCHAR(10)",
+          "description": "Prefix of the customer's ZIP code.",
+          "business_role": "Geographic dimension; used for regional segmentation if needed."
+        },
+        {
+          "table": "customers",
+          "field_name": "customer_city",
+          "type": "VARCHAR(100)",
+          "description": "City of the customer.",
+          "business_role": "Location dimension; used for city-level distribution analysis."
+        },
+        {
+          "table": "customers",
+          "field_name": "customer_state",
+          "type": "VARCHAR(10)",
+          "description": "State of the customer.",
+          "business_role": "Core geographic dimension for buyer distribution and market coverage analysis."
+        }
+      ]
+    },
+    {
+      "table_name": "products",
+      "grain_definition": "One row per product_id.",
+      "fields": [
+        {
+          "table": "products",
+          "field_name": "product_id",
+          "type": "VARCHAR(50)",
+          "description": "Unique identifier of the product.",
+          "business_role": "Primary join key from order_items."
+        },
+        {
+          "table": "products",
+          "field_name": "product_category_name",
+          "type": "VARCHAR(100)",
+          "description": "Original product category name.",
+          "business_role": "Product dimension; used for category-level performance analysis."
+        },
+        {
+          "table": "products",
+          "field_name": "product_name_lenght",
+          "type": "INT",
+          "description": "Length of the product name text in characters.",
+          "business_role": "Data quality / catalog attribute; low direct business priority."
+        },
+        {
+          "table": "products",
+          "field_name": "product_description_lenght",
+          "type": "INT",
+          "description": "Length of the product description text in characters.",
+          "business_role": "Catalog richness attribute; useful for extended content-quality analysis."
+        },
+        {
+          "table": "products",
+          "field_name": "product_photos_qty",
+          "type": "INT",
+          "description": "Number of product photos available.",
+          "business_role": "Catalog presentation attribute; can support conversion-quality exploration."
+        },
+        {
+          "table": "products",
+          "field_name": "product_weight_g",
+          "type": "DECIMAL(10,2)",
+          "description": "Product weight in grams.",
+          "business_role": "Logistics attribute; may affect freight and delivery experience."
+        },
+        {
+          "table": "products",
+          "field_name": "product_length_cm",
+          "type": "DECIMAL(10,2)",
+          "description": "Product length in centimeters.",
+          "business_role": "Physical attribute; useful for logistics and packaging analysis."
+        },
+        {
+          "table": "products",
+          "field_name": "product_height_cm",
+          "type": "DECIMAL(10,2)",
+          "description": "Product height in centimeters.",
+          "business_role": "Physical attribute; useful for logistics and packaging analysis."
+        },
+        {
+          "table": "products",
+          "field_name": "product_width_cm",
+          "type": "DECIMAL(10,2)",
+          "description": "Product width in centimeters.",
+          "business_role": "Physical attribute; useful for logistics and packaging analysis."
+        }
+      ]
+    },
+    {
+      "table_name": "reviews",
+      "grain_definition": "One row per review event linked to an order_id; validate duplicates before aggregation.",
+      "fields": [
+        {
+          "table": "reviews",
+          "field_name": "review_id",
+          "type": "VARCHAR(50)",
+          "description": "Identifier of the review record.",
+          "business_role": "Review event identifier; used for deduplication checks."
+        },
+        {
+          "table": "reviews",
+          "field_name": "order_id",
+          "type": "VARCHAR(50)",
+          "description": "Order identifier linked to the review.",
+          "business_role": "Foreign key to orders; supports order experience analysis."
+        },
+        {
+          "table": "reviews",
+          "field_name": "review_score",
+          "type": "INT",
+          "description": "Customer rating score, typically from 1 to 5.",
+          "business_role": "Primary customer satisfaction metric."
+        },
+        {
+          "table": "reviews",
+          "field_name": "review_comment_title",
+          "type": "TEXT",
+          "description": "Short title entered by the reviewer.",
+          "business_role": "Qualitative feedback attribute; optional for text analysis."
+        },
+        {
+          "table": "reviews",
+          "field_name": "review_comment_message",
+          "type": "TEXT",
+          "description": "Detailed comment entered by the reviewer.",
+          "business_role": "Qualitative feedback attribute; optional for NLP or sentiment extensions."
+        },
+        {
+          "table": "reviews",
+          "field_name": "review_creation_date",
+          "type": "DATETIME",
+          "description": "Date when the review was created.",
+          "business_role": "Time field for review trend analysis."
+        },
+        {
+          "table": "reviews",
+          "field_name": "review_answer_timestamp",
+          "type": "DATETIME",
+          "description": "Timestamp when the review was answered or recorded.",
+          "business_role": "Operational response timing field."
+        }
+      ]
+    },
+    {
+      "table_name": "payments",
+      "grain_definition": "One row per order payment record; one order may have multiple installments or payment method records.",
+      "fields": [
+        {
+          "table": "payments",
+          "field_name": "order_id",
+          "type": "VARCHAR(50)",
+          "description": "Identifier of the order associated with the payment.",
+          "business_role": "Foreign key to orders; used to reconcile payment values at order level."
+        },
+        {
+          "table": "payments",
+          "field_name": "payment_sequential",
+          "type": "INT",
+          "description": "Sequence number of the payment record within the order.",
+          "business_role": "Line sequencing field; supports multi-payment validation."
+        },
+        {
+          "table": "payments",
+          "field_name": "payment_type",
+          "type": "VARCHAR(30)",
+          "description": "Method used for payment, such as credit_card, voucher, or boleto.",
+          "business_role": "Payment channel dimension; useful for payment mix analysis."
+        },
+        {
+          "table": "payments",
+          "field_name": "payment_installments",
+          "type": "INT",
+          "description": "Number of installments used in the payment.",
+          "business_role": "Payment behavior field; useful for customer payment preference analysis."
+        },
+        {
+          "table": "payments",
+          "field_name": "payment_value",
+          "type": "DECIMAL(10,2)",
+          "description": "Payment amount recorded for the payment entry.",
+          "business_role": "Order settlement amount; used for payment reconciliation and validation against item totals."
+        }
+      ]
+    }
+  ],
+  "core_metrics": [
+    {
+      "metric_name": "GMV",
+      "grain_definition": "Usually aggregated by day, month, customer segment, or overall business period based on delivered orders.",
+      "definition": "Gross Merchandise Value calculated as the sum of item selling price from valid completed orders.",
+      "formula": "SUM(order_items.price)",
+      "base_tables": [
+        "orders",
+        "order_items"
+      ],
+      "business_rule": "Recommended to include only delivered orders and exclude canceled or unavailable orders. Freight is excluded from the default GMV definition in this project."
+    },
+    {
+      "metric_name": "Orders",
+      "grain_definition": "Counted at order_id grain and then aggregated by time or segment.",
+      "definition": "Number of unique valid orders in the selected analysis scope.",
+      "formula": "COUNT(DISTINCT orders.order_id)",
+      "base_tables": [
+        "orders"
+      ],
+      "business_rule": "Recommended to count only delivered orders for comparable KPI tracking unless a broader funnel analysis is explicitly needed."
+    },
+    {
+      "metric_name": "Buyers",
+      "grain_definition": "Counted at customer_unique_id grain and then aggregated by time or segment.",
+      "definition": "Number of unique purchasing customers in the selected analysis scope.",
+      "formula": "COUNT(DISTINCT customers.customer_unique_id)",
+      "base_tables": [
+        "orders",
+        "customers"
+      ],
+      "business_rule": "Use customer_unique_id instead of customer_id to avoid overcounting the same real-world customer across multiple order records."
+    },
+    {
+      "metric_name": "AOV",
+      "grain_definition": "Calculated over an order-level scope for a selected time window or segment.",
+      "definition": "Average Order Value, representing average GMV per valid order.",
+      "formula": "SUM(order_items.price) / COUNT(DISTINCT orders.order_id)",
+      "base_tables": [
+        "orders",
+        "order_items"
+      ],
+      "business_rule": "Keep the numerator and denominator under the same order-status filter. Default project logic uses delivered orders only."
+    },
+    {
+      "metric_name": "Repeat_Rate",
+      "grain_definition": "Calculated at customer_unique_id grain within a selected analysis period.",
+      "definition": "Share of buyers who placed at least two valid orders.",
+      "formula": "COUNT(DISTINCT CASE WHEN customer_order_cnt >= 2 THEN customer_unique_id END) / COUNT(DISTINCT customer_unique_id)",
+      "base_tables": [
+        "orders",
+        "customers"
+      ],
+      "business_rule": "Customer order count should be built using customer_unique_id and valid completed orders only."
+    },
+    {
+      "metric_name": "Late_Delivery_Rate",
+      "grain_definition": "Calculated at order_id grain and then aggregated by time, region, or review segment.",
+      "definition": "Proportion of delivered orders where actual delivery date is later than estimated delivery date.",
+      "formula": "COUNT(DISTINCT CASE WHEN orders.order_delivered_customer_date > orders.order_estimated_delivery_date THEN orders.order_id END) / COUNT(DISTINCT orders.order_id)",
+      "base_tables": [
+        "orders"
+      ],
+      "business_rule": "Only evaluate delivered orders with non-null actual and estimated delivery timestamps."
+    }
+  ],
+  "analysis_notes": [
+    "Grain consistency is critical. Do not aggregate GMV or Orders directly from joined tables without checking for one-to-many duplication.",
+    "Use orders as the primary fact grain for order-level KPIs and join order_items only when revenue components are needed.",
+    "Use customer_unique_id, not customer_id, for customer lifecycle, repeat purchase, and RFM analysis.",
+    "Validate review and payment table duplication before combining them with item-level data.",
+    "All KPI definitions should explicitly state included order statuses to keep SQL, notebooks, and README conclusions aligned."
+  ]
+}
