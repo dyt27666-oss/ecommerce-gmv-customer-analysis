@@ -1,4 +1,4 @@
-# ecommerce-gmv-customer-analysis
+# Ecommerce-GMV-Customer-Analysis
 
 ## Project Overview
 
